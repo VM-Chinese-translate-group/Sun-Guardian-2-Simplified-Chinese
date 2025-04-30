@@ -89,8 +89,13 @@ jobs:
         id: datetime
         run: echo "datetime=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
-      - name: Zip CNPack folder
-        run: cd CNPack & zip -r -j "VM-CNPack-${{ env.datetime }}.zip" ./CNPack
+      - name: Zip CNPack folder (without root dir) # 修改此步骤以避免根目录
+        run: |
+          # 进入 CNPack 目录
+          cd ./CNPack
+          # 在 CNPack 目录下执行 zip 命令，将当前目录（.）的内容打包
+          # zip 文件名使用 ../ 返回到仓库根目录保存
+          zip -r "../VM-CNPack-${{ env.datetime }}.zip" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
