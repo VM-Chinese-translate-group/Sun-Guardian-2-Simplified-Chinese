@@ -71,7 +71,8 @@ def save_translation(zh_cn_dict: dict[str, str], path: Path) -> None:
     :param zh_cn_dict: 翻译内容的字典
     :param path: 原始文件路径
     """
-    dir_path = Path("CNPack") / path.parent
+    dir_path = Path("CNPack") / path.parent    
+    dir_path = Path(str(dir_path).replace("CNPack","CNPack/assets/vm/lang"))
     dir_path.mkdir(parents=True, exist_ok=True)
     file_path = dir_path / "zh_cn.json"
     source_path = str(file_path).replace("zh_cn.json", "en_us.json").replace("CNPack", "Source")
