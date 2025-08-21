@@ -66,27 +66,67 @@ def get_files() -> None:
 
 def save_translation(zh_cn_dict: dict[str, str], path: Path) -> None:
     """
-    保存翻译内容到指定的 JSON 文件
+    保存翻译内容到指定的 JSON 文件，并处理因Paratranz截断导致键不匹配的问题。
 
-    :param zh_cn_dict: 翻译内容的字典
+    :param zh_cn_dict: 从Paratranz获取的翻译内容的字典
     :param path: 原始文件路径
     """
-    dir_path = Path("CNPack") / path.parent    
-    dir_path = Path(str(dir_path).replace("CNPack","CNPack/assets/test/lang"))
+    dir_path = Path("CNPack") / path.parent
+    dir_path = Path(str(dir_path).replace("CNPack", "CNPack/assets/test/lang"))
     dir_path.mkdir(parents=True, exist_ok=True)
     file_path = dir_path / "zh_cn.json"
     source_path = str(file_path).replace("zh_cn.json", "en_us.json").replace("CNPack", "Source")
+
     with open(file_path, "w", encoding="UTF-8") as f:
         try:
             with open(source_path, "r", encoding="UTF-8") as f1:
                 source_json: dict = json.load(f1)
-            keys = source_json.keys()
-            for key in keys:
-                source_json[key] = zh_cn_dict[key]
-            json.dump(source_json, f, ensure_ascii=False, indent=4, separators=(",", ":"))
+
+            # --- 核心修复逻辑开始 ---
+
+            # 1. 创建一个新字典，用于存放键已校正的翻译
+            corrected_zh_cn_dict = {}
+            unmatched_paratranz_keys = []
+
+            for pt_key, pt_value in zh_cn_dict.items():
+                # 2. 优先进行直接、完整的键匹配
+                if pt_key in source_json:
+                    corrected_zh_cn_dict[pt_key] = pt_value
+                else:
+                    # 3. 如果直接匹配失败，则认为该键可能被截断，暂存以进行下一步处理
+                    unmatched_paratranz_keys.append(pt_key)
+            
+            # 4. 处理无法直接匹配的键（通常是被截断的键）
+            source_keys_set = set(source_json.keys())
+            for pt_key in unmatched_paratranz_keys:
+                found_match = False
+                # 检查键长度是否为255，这是被截断的强特征
+                if len(pt_key) == 255:
+                    for source_key in source_keys_set:
+                        # 如果源键以被截断的键为前缀，则认为匹配成功
+                        if source_key.startswith(pt_key):
+                            corrected_zh_cn_dict[source_key] = zh_cn_dict[pt_key]
+                            found_match = True
+                            break # 找到匹配项，跳出内层循环
+                
+                if not found_match:
+                    print(f"警告: Paratranz的键 '{pt_key[:50]}...' 在源文件中找不到匹配项，该翻译将被忽略。")
+
+            # 5. 按照源文件(en_us.json)的键序，构建最终的json对象
+            final_json_object = {}
+            for source_key in source_json.keys():
+                # 如果校正后的翻译字典中有这个键，则使用翻译；否则，保留原文作为备用
+                final_json_object[source_key] = corrected_zh_cn_dict.get(source_key, source_json[source_key])
+            
+            # --- 核心修复逻辑结束 ---
+
+            json.dump(final_json_object, f, ensure_ascii=False, indent=4, separators=(",", ":"))
+
         except IOError:
-            print(f"{source_path}路径不存在，文件按首字母排序！")
-            json.dump(zh_cn_dict, f, ensure_ascii=False, indent=4, separators=(",", ":"), sort_keys=True)
+            print(f"源文件 {source_path} 路径不存在，文件将按Paratranz默认顺序排序！")
+            # 在源文件不存在的情况下，无法进行键校正，只能按原样输出
+            sorted_dict = {key: zh_cn_dict[key] for key in sorted(zh_cn_dict.keys())}
+            json.dump(sorted_dict, f, ensure_ascii=False, indent=4, separators=(",", ":"))
 
 
 def process_translation(file_id: int, path: Path) -> dict[str, str]:
