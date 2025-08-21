@@ -99,24 +99,32 @@ def process_translation(file_id: int, path: Path) -> dict[str, str]:
     """
     keys, values = translate(file_id)
 
-    # 手动处理文本的替换，避免反斜杠被转义
+    # 尝试读取本地的 en_us.json 以保留原文格式
     try:
         with open("Source/" + str(path), "r", encoding="UTF-8") as f:
             zh_cn_dict = json.load(f)
     except IOError:
         zh_cn_dict = {}
+        
     for key, value in zip(keys, values):
-        # 确保替换 空格 和 \\n
+        # 确保替换 \\ 和 \n
         value = re.sub(r'\\\\', r'\\', value)
-        value = re.sub(r'\\n','\n',value)
-        value = re.sub(' ','\u00A0',value)
+        value = re.sub(r'\\n', '\n', value)
+        
+        # 【核心修改】仅当值包含中文字符时，才将常规空格替换为不间断空格
+        if re.search(r'[\u4e00-\u9fff]', value):
+            value = re.sub(' ', '\u00A0', value)
+            
         # 保存替换后的值
         zh_cn_dict[key] = value
         
-    # 特殊处理：ftbquest 文件
+    # 特殊处理：ftbquest 文件 (此部分逻辑在原脚本中似乎会被上面的循环结果覆盖，但为了保险起见一并修改)
+    # 注意：原脚本的这部分逻辑会重新处理原始的 keys 和 values，覆盖上面的循环结果。
+    # 因此，这里的修改至关重要。
     if "ftbquest" in path.name:
         zh_cn_dict = {
-            key: value.replace(" ", "\u00A0") if "image" not in value else value
+            # 【核心修改】在字典推导式中加入同样的中文判断逻辑
+            key: value.replace(" ", "\u00A0") if "image" not in value and re.search(r'[\u4e00-\u9fff]', value) else value
             for key, value in zip(keys, values)
         }
     return zh_cn_dict
