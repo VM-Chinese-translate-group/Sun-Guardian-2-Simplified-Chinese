@@ -53,6 +53,33 @@ jobs:
       - name: Paratranz To GitHub
         run: python .github/workflows/para2github.py
 
+      # ====================================================================
+      # ======================= 修正后的重定向步骤 开始 ========================
+      # ====================================================================
+      - name: Redirect opolisutilities assets directory
+        run: |
+          SOURCE_DIR="CNPack/assets/test"
+          DEST_PARENT_DIR="CNPack/assets/vm"
+
+          # 检查源目录是否存在
+          if [ -d "$SOURCE_DIR" ]; then
+            echo "源目录 '$SOURCE_DIR' 存在，开始重定向..."
+
+            # 确保目标上级目录存在
+            mkdir -p "$DEST_PARENT_DIR"
+
+            # 使用 mv 命令将整个源目录移动到目标上级目录中
+            # mv 命令会自动处理源目录的删除
+            mv "$SOURCE_DIR" "$DEST_PARENT_DIR/"
+
+            echo "目录成功移动至 '$DEST_PARENT_DIR/'."
+          else
+            echo "源目录 '$SOURCE_DIR' 未找到，跳过重定向。"
+          fi
+      # ====================================================================
+      # ======================== 修正后的重定向步骤 结束 =======================
+      # ====================================================================
+
       - name: Commit changes
         id: commit
         run: |
